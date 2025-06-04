@@ -1,44 +1,44 @@
 import os
 import pandas as pd
+from sqlalchemy import create_engine, text
+from clean_company_data import clean_company_table
+from config import RAW_FILE, SUPABASE_DB_URL, DEFAULT_COLUMNS
 
-INPUT_DIR = "data"
-RAW_FILE = os.path.join(INPUT_DIR, "Accounts_2025_06_03.csv")
-OUTPUT_DIR = "output"
-CLEANED_FILE = os.path.join(OUTPUT_DIR, "Cleaned_Company_Table.csv")
+# -- DB INSERT --
+def insert_companies_to_supabase(df, engine):
+    with engine.begin() as conn:
+        for _, row in df.iterrows():
+            insert_sql = text("""
+                INSERT INTO companies (name, website, location, size, funding_stage, modality)
+                VALUES (:name, :website, :location, :size, :funding_stage, :modality)
+                ON CONFLICT (name) DO NOTHING
+            """)
+            conn.execute(insert_sql, {
+                "name": row["name"],
+                "website": row["website"],
+                "location": row["location"],
+                "size": row["size"],
+                "funding_stage": row["funding_stage"],
+                "modality": row["modality"]
+            })
 
-def clean_company_table(df):
-    df_cleaned = df[[
-        "Account Name", "Website", "Shipping City", "Shipping State",
-        "Shipping Country", "Region", "Employees", "Rating", "Major segment"
-    ]].copy()
+# Add this to test your connection
+def test_connection():
+    try:
+        engine = create_engine(SUPABASE_DB_URL)
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT 1"))
+            print("Connection successful!")
+    except Exception as e:
+        print(f"Connection failed: {e}")
 
-    df_cleaned.rename(columns={
-        "Account Name": "Name",
-        "Employees": "Size",
-        "Rating": "Funding Stage",
-        "Major segment": "Modality",
-        "Shipping City": "City",
-        "Shipping State": "State",
-        "Shipping Country": "Country"
-    }, inplace=True)
-
-    def resolve_location(row):
-        if pd.notnull(row["City"]) and pd.notnull(row["State"]) and pd.notnull(row["Country"]):
-            return f"{row['City']}, {row['State']}, {row['Country']}"
-        elif pd.notnull(row["Region"]):
-            return row["Region"]
-        else:
-            return "Unknown"
-
-    df_cleaned["Location"] = df_cleaned.apply(resolve_location, axis=1)
-
-    return df_cleaned[["Name", "Website", "Location", "Size", "Funding Stage", "Modality"]]
-
-
+# -- MAIN PIPELINE --
 def run_pipeline():
+    test_connection()
     print("Starting pipeline...")
+    # print(SUPABASE_DB_URL)
+    engine = create_engine(SUPABASE_DB_URL)
 
-    # Step 1: Read raw file
     if not os.path.exists(RAW_FILE):
         print(f"Raw file not found: {RAW_FILE}")
         return
@@ -46,15 +46,12 @@ def run_pipeline():
     df_raw = pd.read_csv(RAW_FILE)
     print(f"Loaded raw file with {len(df_raw)} rows")
 
-    # Step 2: Clean
     df_cleaned = clean_company_table(df_raw)
-    print(f"Cleaned data to {len(df_cleaned)} companies")
+    df_cleaned = df_cleaned[DEFAULT_COLUMNS]
+    print(f"Cleaned to {len(df_cleaned)} company records")
 
-    # Step 3: Save
-    os.makedirs(OUTPUT_DIR, exist_ok=True)
-    df_cleaned.to_csv(CLEANED_FILE, index=False)
-    print(f"Saved cleaned company table to {CLEANED_FILE}")
-
+    insert_companies_to_supabase(df_cleaned, engine)
+    print("Synced to Supabase database")
 
 if __name__ == "__main__":
     run_pipeline()

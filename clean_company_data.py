@@ -1,45 +1,31 @@
 import pandas as pd
 
-def clean_company_table(input_csv, output_csv):
-    df = pd.read_csv(input_csv)
+def clean_company_table(df):
+    df.columns = df.columns.str.strip().str.lower()
 
-    # Extract relevant fields
     df_cleaned = df[[
-        "Account Name", "Website", "Shipping City", "Shipping State",
-        "Shipping Country", "Region", "Employees", "Rating", "Major segment"
+        "account name", "website", "shipping city", "shipping state",
+        "shipping country", "region", "employees", "rating", "major segment"
     ]].copy()
 
-    # Rename for clarity
     df_cleaned.rename(columns={
-        "Account Name": "Name",
-        "Employees": "Size",
-        "Rating": "Funding Stage",
-        "Major segment": "Modality",
-        "Shipping City": "City",
-        "Shipping State": "State",
-        "Shipping Country": "Country"
+        "account name": "name",
+        "employees": "size",
+        "rating": "funding_stage",
+        "major segment": "modality",
+        "shipping city": "city",
+        "shipping state": "state",
+        "shipping country": "country"
     }, inplace=True)
 
-    # Construct fallback location
     def resolve_location(row):
-        if pd.notnull(row["City"]) and pd.notnull(row["State"]) and pd.notnull(row["Country"]):
-            return f"{row['City']}, {row['State']}, {row['Country']}"
-        elif pd.notnull(row["Region"]):
-            return row["Region"]
+        if pd.notnull(row["city"]) and pd.notnull(row["state"]) and pd.notnull(row["country"]):
+            return f"{row['city']}, {row['state']}, {row['country']}"
+        elif pd.notnull(row["region"]):
+            return row["region"]
         else:
             return "Unknown"
 
-    df_cleaned["Location"] = df_cleaned.apply(resolve_location, axis=1)
+    df_cleaned["location"] = df_cleaned.apply(resolve_location, axis=1)
 
-    # Final columns
-    df_cleaned = df_cleaned[[
-        "Name", "Website", "Location", "Size", "Funding Stage", "Modality"
-    ]]
-
-    # Save output
-    df_cleaned.to_csv(output_csv, index=False)
-    print(f"Cleaned company table saved to {output_csv}")
-
-# Example usage:
-if __name__ == "__main__":
-    clean_company_table("Accounts_2025_06_03.csv", "Cleaned_Company_Table.csv")
+    return df_cleaned[["name", "website", "location", "size", "funding_stage", "modality"]]

@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from run_pipeline import run_pipeline
+from config import CLEANED_FILE
 
 st.set_page_config(page_title="Company Ranking Tool", layout="wide")
 st.title("Company Ranking Dashboard")
@@ -13,7 +14,7 @@ if st.button("Run Company Pipeline"):
 
 # Load and display output if available
 try:
-    df = pd.read_csv("output/Cleaned_Company_Table.csv")
+    df = pd.read_csv(CLEANED_FILE)
     st.markdown("### Cleaned Company Summary")
     st.dataframe(df)
 except FileNotFoundError:
