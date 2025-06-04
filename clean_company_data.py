@@ -5,17 +5,17 @@ def clean_company_table(df):
     df.columns = df.columns.str.strip().str.lower()
 
     df_cleaned = df[[
-        "account name", "website", "shipping state",
-        "shipping country", "employees", "rating", "major segment"
+        "account name", "website", "billing state",
+        "billing country", "company size (fte)", "funding stage", "major segment"
     ]].copy()
 
     df_cleaned.rename(columns={
         "account name": "name",
-        "employees": "size",
-        "rating": "funding_stage",
+        "company size (fte)": "size",
+        "funding stage": "funding_stage",
         "major segment": "modality",
-        "shipping country": "country",
-        "shipping state": "state"
+        "billing country": "country",
+        "billing state": "state"
     }, inplace=True)
 
     for col in df_cleaned.columns:

@@ -17,10 +17,12 @@ SUPABASE_DB_URL = f"postgresql://{user}:{encoded_pwd}@{host}:5432/{dbname}?sslmo
 # Input/output paths
 INPUT_DIR = "data"
 OUTPUT_DIR = "output"
-RAW_FILE = os.path.join(INPUT_DIR, "Accounts_2025_06_03.csv")
+RAW_FILE = os.path.join(INPUT_DIR, "Accounts_2025_06_04.csv")
 CLEANED_FILE = os.path.join(OUTPUT_DIR, "Cleaned_Company_Table.csv")
 
 # Optional: default CSV column names (if you want to standardize)
 DEFAULT_COLUMNS = [
     "name", "website", "country", "state", "size", "funding_stage", "modality"
 ]
+
+USER_AGENT = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36"
