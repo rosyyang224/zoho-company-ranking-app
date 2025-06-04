@@ -9,32 +9,22 @@ def insert_companies_to_supabase(df, engine):
     with engine.begin() as conn:
         for _, row in df.iterrows():
             insert_sql = text("""
-                INSERT INTO companies (name, website, location, size, funding_stage, modality)
-                VALUES (:name, :website, :location, :size, :funding_stage, :modality)
+                INSERT INTO companies (name, website, country, state, size, funding_stage, modality)
+                VALUES (:name, :website, :country, :state, :size, :funding_stage, :modality)
                 ON CONFLICT (name) DO NOTHING
             """)
             conn.execute(insert_sql, {
                 "name": row["name"],
                 "website": row["website"],
-                "location": row["location"],
+                "country": row["country"],
+                "state": row["state"],
                 "size": row["size"],
                 "funding_stage": row["funding_stage"],
                 "modality": row["modality"]
             })
 
-# Add this to test your connection
-def test_connection():
-    try:
-        engine = create_engine(SUPABASE_DB_URL)
-        with engine.connect() as conn:
-            result = conn.execute(text("SELECT 1"))
-            print("Connection successful!")
-    except Exception as e:
-        print(f"Connection failed: {e}")
-
 # -- MAIN PIPELINE --
 def run_pipeline():
-    test_connection()
     print("Starting pipeline...")
     # print(SUPABASE_DB_URL)
     engine = create_engine(SUPABASE_DB_URL)

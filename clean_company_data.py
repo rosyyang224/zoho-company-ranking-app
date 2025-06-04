@@ -1,11 +1,12 @@
 import pandas as pd
+from config import DEFAULT_COLUMNS
 
 def clean_company_table(df):
     df.columns = df.columns.str.strip().str.lower()
 
     df_cleaned = df[[
-        "account name", "website", "shipping city", "shipping state",
-        "shipping country", "region", "employees", "rating", "major segment"
+        "account name", "website", "shipping state",
+        "shipping country", "employees", "rating", "major segment"
     ]].copy()
 
     df_cleaned.rename(columns={
@@ -13,19 +14,13 @@ def clean_company_table(df):
         "employees": "size",
         "rating": "funding_stage",
         "major segment": "modality",
-        "shipping city": "city",
-        "shipping state": "state",
-        "shipping country": "country"
+        "shipping country": "country",
+        "shipping state": "state"
     }, inplace=True)
 
-    def resolve_location(row):
-        if pd.notnull(row["city"]) and pd.notnull(row["state"]) and pd.notnull(row["country"]):
-            return f"{row['city']}, {row['state']}, {row['country']}"
-        elif pd.notnull(row["region"]):
-            return row["region"]
-        else:
-            return "Unknown"
+    for col in df_cleaned.columns:
+        df_cleaned[col] = df_cleaned[col].apply(
+            lambda x: None if pd.isna(x) or str(x).strip().lower() in ["", "nan", "none"] else str(x).strip()
+        )
 
-    df_cleaned["location"] = df_cleaned.apply(resolve_location, axis=1)
-
-    return df_cleaned[["name", "website", "location", "size", "funding_stage", "modality"]]
+    return df_cleaned[DEFAULT_COLUMNS]

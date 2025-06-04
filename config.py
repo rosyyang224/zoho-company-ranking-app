@@ -22,5 +22,5 @@ CLEANED_FILE = os.path.join(OUTPUT_DIR, "Cleaned_Company_Table.csv")
 
 # Optional: default CSV column names (if you want to standardize)
 DEFAULT_COLUMNS = [
-    "name", "website", "location", "size", "funding_stage", "modality"
+    "name", "website", "country", "state", "size", "funding_stage", "modality"
 ]
