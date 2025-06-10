@@ -1,5 +1,4 @@
 import pandas as pd
-from config import DEFAULT_COLUMNS
 
 def normalize_missing(val):
     """Convert empty strings and pandas NA to Python None."""
