@@ -26,7 +26,7 @@ def guess_possible_domains(name):
                 f"{prefix}therapeutics.com",
             ]
 
-    if "biosciences" in name_lower or "biotech" in name_lower:
+    if "biosciences" in name_lower or "biotech" in name_lower or "biotherapeutics" in name_lower:
         prefix = re.sub(r"[ -]?(biosciences|biotech)", "", name_lower)
         guesses += [
             f"{prefix}bio.com",
@@ -39,6 +39,7 @@ def guess_possible_domains(name):
     if "therapeutics" in tokens:
         dash_prefix = "-".join(t for t in tokens if t != "therapeutics")
         guesses += [f"{dash_prefix}-tx.com"]
+        guesses += [f"{dash_prefix}tx.com"]
 
     return list(dict.fromkeys(guesses))  # Deduplicate
 
@@ -167,6 +168,7 @@ def extract_and_score_links(soup: BeautifulSoup, company_name: str):
 
         fallback_domains = []
         for d in guess_possible_domains(company_name):
+            d = d.strip().replace(" ", "")
             test_url = f"https://{d}"
             try:
                 r = requests.get(test_url, timeout=5)
