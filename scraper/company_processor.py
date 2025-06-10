@@ -4,10 +4,10 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import requests
 
-from scraper_config import FAKE_CHROME_HEADERS, ACQUISITION_MAP
-from bing_search import get_bing_soup, extract_and_score_links, verify_website_fast, check_acquisition_status
-from location_utils import parse_contact_page, assign_region
-from logging_config import logger
+from scraper.scraper_config import FAKE_CHROME_HEADERS, ACQUISITION_MAP
+from scraper.bing_search import get_bing_soup, extract_and_score_links, verify_website_fast, check_acquisition_status
+from scraper.location_utils import parse_contact_page, assign_region
+from scraper.logging_config import logger
 
 session = requests.Session()
 session.headers.update(FAKE_CHROME_HEADERS)

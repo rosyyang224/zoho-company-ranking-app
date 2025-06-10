@@ -5,7 +5,7 @@ from requests.exceptions import SSLError
 from urllib.parse import urlparse, urlunparse
 from bs4 import BeautifulSoup
 
-from scraper_config import FAKE_CHROME_HEADERS, SKIP_DOMAINS, BIOTECH_TERMS, ACQUISITION_KEYWORDS
+from scraper.scraper_config import FAKE_CHROME_HEADERS, SKIP_DOMAINS, BIOTECH_TERMS, ACQUISITION_KEYWORDS
 
 session = requests.Session()
 session.headers.update(FAKE_CHROME_HEADERS)

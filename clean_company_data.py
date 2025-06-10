@@ -1,6 +1,23 @@
 import pandas as pd
 from config import DEFAULT_COLUMNS
 
+def normalize_missing(val):
+    """Convert empty strings and pandas NA to Python None."""
+    if pd.isna(val) or str(val).strip().lower() in ["", "nan", "na", "<na>"]:
+        return None
+    return str(val).strip()
+
+
+def preprocess_df(path):
+    df = pd.read_csv(path, encoding="ISO-8859-1")
+    df.dropna(axis=1, how="all", inplace=True)
+    df.columns = df.columns.str.strip()
+    df.drop_duplicates(inplace=True)
+    for col in df.select_dtypes(include=['object']):
+        df[col] = df[col].map(normalize_missing)
+    df = df.where(pd.notna(df), None)
+    return df
+
 def clean_company_table(df):
     df.columns = df.columns.str.strip().str.lower()
 
