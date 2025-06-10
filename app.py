@@ -5,9 +5,12 @@ import streamlit as st
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from clean_company_data import preprocess_df
 from scraper.company_processor import process_company
+import psutil
 
 st.set_page_config(page_title="Company Ranking Tool", layout="wide")
 st.title("📊 Company Ranking Dashboard")
+st.write(f"🔍 Memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB")
+
 
 # --- Phase 1: Upload CSV ---
 with st.container():
@@ -59,7 +62,7 @@ if df is not None:
     selected_region = st.selectbox("Target Region", options=region_options)
     selected_segment = st.selectbox("Target Major Segment", options=segment_options)
 
-    st.caption("Tip: For best results, run this in **batches of 50 companies or fewer**. Scraping thousands at once may trigger delays or bot protections.")
+    st.caption("Tip: For best results, run this in **batches of 30 companies or fewer**. Scraping thousands at once may trigger delays or bot protections.")
 
     if st.button("🌐 Fill in Website + Region & Score Companies"):
         progress_bar = st.progress(0)
