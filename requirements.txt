@@ -9,4 +9,4 @@ Requests==2.32.4
 SQLAlchemy==2.0.39
 streamlit==1.45.1
 us==3.2.0
-XlsxWriter==3.2.3
+openpyxl==2.0.0
