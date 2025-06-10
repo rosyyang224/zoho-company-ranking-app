@@ -117,84 +117,90 @@ def extract_simple_tokens(name):
 
 
 def extract_and_score_links(soup: BeautifulSoup, company_name: str):
+    """
+    Return a list of (score, candidate_url) tuples from Bing results,
+    falling back to guessed domains if necessary.
+    """
     normalized = re.sub(r'[^a-z0-9]', '', company_name.lower())
-    keywords = extract_simple_tokens(company_name)
-    candidates = []
+    keywords   = extract_simple_tokens(company_name)
+    candidates: list[tuple[int, str]] = []
 
-    deep_link = soup.select_one(".b_entityTP a[href]")
-    if deep_link:
-        href = deep_link.get("href")
-        netloc = urlparse(href).netloc
+    # --- 1) Check Bing entity panel (high-confidence) ---
+    deep = soup.select_one(".b_entityTP a[href]")
+    if deep:
+        href = deep["href"]
         if not any(skip in href for skip in SKIP_DOMAINS):
-            print(f"\n    ✅ Bing entity panel result detected: {href}")
-            return get_root_homepage(href)
+            root = get_root_homepage(href)
+            # give it a super-high score so it sorts first
+            return [(10_000, root)]
 
+    # --- 2) Score the standard Bing blocks ---
     print("\n🔍 Printing all Bing blocks:")
-    for idx, block in enumerate(soup.select("li.b_algo")):
+    for block in soup.select("li.b_algo"):
         a = block.select_one("h2 a")
-        snippet_tag = block.select_one(".b_caption p")
-        href = a.get("href", "") if a else "None"
-        title = a.get_text(strip=True) if a else "No title"
-        snippet = snippet_tag.get_text(strip=True) if snippet_tag else "No snippet"
-        print(f"\n🔹 Bing Block {idx + 1}")
-        print(f"    → Title:   {title}")
-        print(f"    → Href:    {href}")
-        print(f"    → Snippet: {snippet}")
-
-        if not a or not href:
+        if not a or not a.get("href"):
             continue
+
+        href    = a["href"]
+        title   = a.get_text(strip=True)
+        snippet = (block.select_one(".b_caption p") or "").get_text(strip=True)
+
         if any(domain in href.lower() for domain in SKIP_DOMAINS):
             continue
-        parsed = urlparse(href)
-        if parsed.path.lower().endswith(".pdf"):
+        if urlparse(href).path.lower().endswith(".pdf"):
             continue
 
-        title_lc = title.lower()
-        snippet_lc = snippet.lower()
-
         score = 0
-        score += sum(kw in href.lower() or kw in title_lc or kw in snippet_lc for kw in keywords | BIOTECH_TERMS)
-        score += 100 if normalized in parsed.netloc else 0
-        score += 10 if parsed.path in ("", "/") else 0
-        score -= len(parsed.netloc)
-        score -= 5 if any(x in href for x in ["ir.", "finance.", "seekingalpha"]) else 0
+        low_href  = href.lower()
+        low_title = title.lower()
+        low_snip  = snippet.lower()
+
+        # match your keywords or biotech terms
+        for kw in keywords | BIOTECH_TERMS:
+            if kw in low_href or kw in low_title or kw in low_snip:
+                score += 1
+
+        # bonus if the normalized company name is in the domain
+        if normalized in urlparse(href).netloc:
+            score += 100
+
+        # bonus for root path
+        if urlparse(href).path in ("", "/"):
+            score += 10
+
+        # penalize long domains or IR/finance subdomains
+        score -= len(urlparse(href).netloc)
+        if any(x in href for x in ["ir.", "finance.", "seekingalpha"]):
+            score -= 5
 
         candidates.append((score, href))
         print(f"    → Candidate scored {score}: {href}")
 
+    # --- 3) If still empty, try guessed domains ---
     if not candidates:
         print("    ❌ extract_and_score_links: no good candidates found")
         print("    ⚠️ Trying guessed domain fallback...")
 
-        fallback_domains = []
+        fallback: list[tuple[int,str]] = []
         for d in guess_possible_domains(company_name):
-            d = d.strip().replace(" ", "")
-            test_url = f"https://{d}"
+            dom = d.strip().replace(" ", "")
+            test_url = f"https://{dom}"
             try:
                 r = requests.get(test_url, timeout=5)
                 if r.ok:
-                    print(f"    ✅ fallback domain valid: {test_url}")
-                    fallback_domains.append(test_url)
+                    root = get_root_homepage(test_url)
+                    fallback.append((0, root))
+                    print(f"    ✅ fallback domain valid: {root}")
                 else:
                     print(f"    ❌ fallback domain bad status: {r.status_code}")
             except Exception as e:
                 print(f"    ❌ failed to reach {test_url}: {e}")
 
-        for domain in fallback_domains:
-            if verify_website_fast(domain, company_name):
-                print(f"    ✅ Verified fallback domain: {domain}")
-                return get_root_homepage(domain)
-            else:
-                print(f"    ❌ Verification failed for fallback: {domain}")
+        return fallback  # may be empty, but at least it's a list
 
-        print("    ❌ No fallback domains verified; returning None")
-        return None
-
-
-    best = sorted(candidates, key=lambda x: x[0], reverse=True)[0][1]
-    print(f"\n    ✅ Selected homepage: {best}")
-    return get_root_homepage(best)
-
+    # --- 4) Sort and return a list of (score, href) ---
+    sorted_pairs = sorted(candidates, key=lambda x: x[0], reverse=True)
+    return sorted_pairs
 
 def get_root_homepage(url: str) -> str:
     p = urlparse(url)
@@ -255,22 +261,3 @@ def verify_website_fast(url: str, company_name: str, tried_www: bool = False) ->
 
     print("    ❌ verify: no tokens found")
     return False
-
-
-def check_acquisition_status(soup: BeautifulSoup, company_name: str) -> dict | None:
-    for block in soup.select("li.b_algo"):
-        snippet_tag = block.select_one(".b_caption p")
-        snippet = snippet_tag.get_text(" ", strip=True) if snippet_tag else ""
-        low = snippet.lower()
-        for phrase in [kw.lower() for kw in ACQUISITION_KEYWORDS]:
-            if phrase in low:
-                m = re.search(
-                    r"(?:acquired by|merged with|a subsidiary of|now part of)\s+([A-Z][A-Za-z &\.]+?)($|\.|,)",
-                    snippet, re.IGNORECASE
-                )
-                if m:
-                    acq = m.group(1).strip()
-                    if acq.lower() != company_name.lower():
-                        print(f"    🔍 acquisition found: {acq}")
-                        return {"acquirer": acq}
-    return None

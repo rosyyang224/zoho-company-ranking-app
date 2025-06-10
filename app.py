@@ -3,8 +3,7 @@ import pandas as pd
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
 from clean_company_data import preprocess_df
-from scraper.company_processor import process_company, fetch_html_with_fallback, find_contact_link, fetch_page_with_playwright
-from scraper.location_utils import parse_contact_page, assign_region
+from scraper.company_processor import process_company
 
 st.set_page_config(page_title="Company Ranking Tool", layout="wide")
 st.title("Company Ranking Dashboard")
@@ -31,52 +30,24 @@ if df is not None and st.button("Fill in website and region"):
     results = []
 
     def _process_row(row):
-        company       = row["Account Name"]
-        orig_website  = (row.get("Website") or "").strip()
-        orig_region   = (row.get("Region")  or "").strip()
+        company     = row["Account Name"]
+        orig_url    = row.get("Website") or None
+        orig_region = row.get("Region")  or None
 
-        # Start by deciding what URL to use
-        website = orig_website
-        if not orig_website:
-            # only scrape if the cell was blank
-            scraped = process_company(company)
-            website = scraped.get("url") or ""
+        if orig_url and orig_region:
+            return row
 
-        # Now only run location scraping if Region is blank *and* we have a website
-        region = orig_region
-        if not orig_region and website:
-            try:
-                home_html, home_soup = fetch_html_with_fallback(website)
-                contact = find_contact_link(home_soup, website)
-                if contact:
-                    html, soup = fetch_html_with_fallback(contact)
-                else:
-                    html, soup = home_html, home_soup
-
-                lines = [ln.strip() for ln in soup.get_text("\n").split("\n") if ln.strip()]
-                country, state = parse_contact_page(soup, html, lines)
-
-                # fallback to Playwright if needed
-                if not country and contact:
-                    rendered = fetch_page_with_playwright(contact)
-                    from bs4 import BeautifulSoup
-                    soup2   = BeautifulSoup(rendered, "html.parser")
-                    lines2  = [ln.strip() for ln in soup2.get_text("\n").split("\n") if ln.strip()]
-                    country, state = parse_contact_page(soup2, rendered, lines2)
-
-                region = assign_region(country, state) or ""
-
-            except Exception:
-                # leave region blank on error
-                region = ""
-
-        # Return all original columns + overwrite only the ones that needed filling
+        # Otherwise, hit your single pipeline:
+        info = process_company(
+            company,
+            scrape_website = not bool(orig_url),
+            scrape_location = not bool(orig_region),
+        )
         return {
             **row,
-            "Website": website,
-            "Region":  region
+            "Website": info.get("url") or orig_url,
+            "Region":  info.get("region") or orig_region,
         }
-
 
     # you can parallelize if you like
     with ThreadPoolExecutor(max_workers=5) as exec:
