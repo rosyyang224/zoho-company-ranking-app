@@ -8,9 +8,19 @@ from scraper.company_processor import process_company
 import psutil
 
 st.set_page_config(page_title="Company Ranking Tool", layout="wide")
+
+# Initialize session keys
+if "uploaded_file" not in st.session_state:
+    st.session_state.uploaded_file = None
+if "df" not in st.session_state:
+    st.session_state.df = None
+if "augmented_df" not in st.session_state:
+    st.session_state.augmented_df = None
+if "ranked_df" not in st.session_state:
+    st.session_state.ranked_df = None
+
 st.title("📊 Company Ranking Dashboard")
 st.write(f"🔍 Memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB")
-
 
 # --- Phase 1: Upload CSV ---
 with st.container():
@@ -22,25 +32,27 @@ with st.container():
     )
     st.caption("💡 Tip: Only the 'Account Name' field is required. You can customize fields in your export as you wish.")
 
-df: pd.DataFrame = None
-augmented_df = None
-ranked_df = None
+    # 2. If a new file is uploaded, overwrite session
+    if uploaded_file is not None:
+        st.session_state.uploaded_file = uploaded_file
+        if uploaded_file.name.endswith(".xlsx"):
+            st.session_state.df = preprocess_df(uploaded_file)
+        else:
+            st.session_state.df = preprocess_df(uploaded_file)
 
-if uploaded_file:
-    if uploaded_file.name.endswith(".xlsx"):
-        df = preprocess_df(pd.read_excel(uploaded_file))
-    else:
-        df = preprocess_df(pd.read_csv(uploaded_file))
-    st.markdown("### 🔍 Uploaded Data")
-    st.dataframe(df)
-
+    # 3. If we have an uploaded file in session, display it
+    if st.session_state.uploaded_file and st.session_state.df is not None:
+        st.markdown("### 🔍 Uploaded Data")
+        st.write(f"📂 Using previously uploaded file: `{st.session_state.uploaded_file.name}`")
+        st.dataframe(st.session_state.df)
 
 # Predeclare placeholders (above fold)
 progress_bar = st.empty()
 status = st.empty()
 
 # --- Phase 2: Scrape Websites & Regions ---
-if df is not None:
+if st.session_state.df is not None:
+    df = st.session_state.df
     # --- Preference Input ---
     st.markdown("### 🎯 Ranking Preferences")
 
@@ -65,6 +77,7 @@ if df is not None:
     st.caption("Tip: For best results, run this in **batches of 30 companies or fewer**. Scraping thousands at once may trigger delays or bot protections.")
 
     if st.button("🌐 Fill in Website + Region & Score Companies"):
+        start_time = time.time()
         progress_bar = st.progress(0)
         status = st.empty()
 
@@ -125,8 +138,13 @@ if df is not None:
             progress_bar.progress(completed / len(df))
             status.text(f"Processed {completed}/{len(df)} companies…")
 
-        augmented_df = pd.DataFrame(results)
+        st.session_state.augmented_df = pd.DataFrame(results)
         status.success("✅ Augmentation complete.")
+
+        duration = time.time() - start_time
+        minutes = int(duration // 60)
+        seconds = int(duration % 60)
+        st.caption(f"⏱️ Augmented file in {minutes} min {seconds} sec.")
 
         if error_log:
             st.warning(f"{len(error_log)} companies encountered errors during scraping.")
@@ -150,18 +168,16 @@ if df is not None:
                 score += 1
             return score
 
-        ranked_df = augmented_df.copy()
-        ranked_df["Rank"] = ranked_df.apply(score_row, axis=1)
-        ranked_df = ranked_df.sort_values(by="Rank", ascending=False)
+        st.session_state.ranked_df = st.session_state.augmented_df.copy()
+        st.session_state.ranked_df["Rank"] = st.session_state.ranked_df.apply(score_row, axis=1)
+        st.session_state.ranked_df = st.session_state.ranked_df.sort_values(by="Rank", ascending=False)
 
         st.markdown("### 🏆 Ranked Companies")
-        st.dataframe(ranked_df)
-
-        # Save to session state for export
-        st.session_state["ranked_df"] = ranked_df
+        st.dataframe(st.session_state.ranked_df)
 
 # --- Phase 3: Export & Summary ---
-if augmented_df is not None:
+if st.session_state.augmented_df is not None:
+    augmented_df = st.session_state.augmented_df
     with st.container():
         # Show which companies were augmented
         st.markdown("### 🛠️ Updated Companies & Fields")
