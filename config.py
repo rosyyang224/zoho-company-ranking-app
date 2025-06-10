@@ -17,8 +17,9 @@ SUPABASE_DB_URL = f"postgresql://{user}:{encoded_pwd}@{host}:5432/{dbname}?sslmo
 # Input/output paths
 INPUT_DIR = "data"
 OUTPUT_DIR = "output"
-RAW_FILE = os.path.join(INPUT_DIR, "Accounts_2025_06_04.csv")
+RAW_FILE = os.path.join(INPUT_DIR, "merged_accounts.csv")
 CLEANED_FILE = os.path.join(OUTPUT_DIR, "Cleaned_Company_Table.csv")
+SCRAPED_WEBSITES = os.path.join(OUTPUT_DIR, "company_website.csv")
 
 # Optional: default CSV column names (if you want to standardize)
 DEFAULT_COLUMNS = [
