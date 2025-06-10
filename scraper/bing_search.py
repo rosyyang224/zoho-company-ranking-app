@@ -12,36 +12,40 @@ session.headers.update(FAKE_CHROME_HEADERS)
 
 
 def guess_possible_domains(name):
-    name_lower = name.lower()
+    name_clean = re.sub(r'[^a-zA-Z0-9\s-]', '', name)  # Remove punctuation but keep spaces and hyphens
+    name_clean = re.sub(r'\s+', ' ', name_clean).strip()  # Collapse multiple spaces
+    name_lower = name_clean.lower()
+
     base = re.sub(r'\W+', '', name_lower)
     guesses = [f"{base}.com"]
 
     if "therapeutics" in name_lower:
         prefix = re.sub(r"[ -]?therapeutics", "", name_lower)
-        if prefix != name_lower:
-            guesses += [
-                f"{prefix}tx.com",
-                f"{prefix}-tx.com",
-                f"{prefix}.com",
-                f"{prefix}therapeutics.com",
-            ]
+        prefix = prefix.replace(" ", "")
+        guesses += [
+            f"{prefix}tx.com",
+            f"{prefix}-tx.com",
+            f"{prefix}.com",
+            f"{prefix}therapeutics.com",
+        ]
 
     if "biosciences" in name_lower or "biotech" in name_lower or "biotherapeutics" in name_lower:
-        prefix = re.sub(r"[ -]?(biosciences|biotech)", "", name_lower)
+        prefix = re.sub(r"[ -]?(biosciences|biotech|biotherapeutics)", "", name_lower)
+        prefix = prefix.replace(" ", "")
         guesses += [
             f"{prefix}bio.com",
             f"{prefix}-bio.com",
             f"{prefix}.com"
         ]
 
-    # Add fallback with dash manually if prefix extraction didn't catch it
     tokens = name_lower.split()
     if "therapeutics" in tokens:
         dash_prefix = "-".join(t for t in tokens if t != "therapeutics")
-        guesses += [f"{dash_prefix}-tx.com"]
-        guesses += [f"{dash_prefix}tx.com"]
+        dash_prefix = dash_prefix.replace(" ", "")
+        guesses += [f"{dash_prefix}-tx.com", f"{dash_prefix}tx.com"]
 
     return list(dict.fromkeys(guesses))  # Deduplicate
+
 
 def fetch_bing_results(query: str, timeout: int = 5):
     url = f"https://www.bing.com/search?q={requests.utils.quote(query)}"
