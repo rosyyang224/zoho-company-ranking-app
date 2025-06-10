@@ -11,20 +11,26 @@ st.title("📊 Company Ranking Dashboard")
 
 # --- Phase 1: Upload CSV ---
 with st.container():
+    st.markdown("### 📤 Upload Zoho Accounts CSV")
     uploaded_file = st.file_uploader(
-        "Upload your Zoho accounts CSV below",
-        type=["csv"],
-        help="Should have at least a 'Company' column and optionally 'Website', 'Region', 'Funding Stage', '# Employees', and 'Major Segment'."
+        label="To export: Zoho > Accounts > Actions > Export Accounts. It should be in CSV format, as it is upon Zoho export, but also accepts Excel files.",
+        type=["csv", "xlsx"],
+        help="To export: Zoho > Accounts > Actions > Export Accounts. You only need to include 'Account Name'; other fields like 'Website', 'Region', 'Funding Stage', 'Employees', and 'Major Segment' are optional."
     )
+    st.caption("💡 Tip: Only the 'Account Name' field is required. You can customize fields in your export as you wish.")
 
 df: pd.DataFrame = None
 augmented_df = None
 ranked_df = None
 
 if uploaded_file:
-    df = preprocess_df(uploaded_file)
+    if uploaded_file.name.endswith(".xlsx"):
+        df = preprocess_df(pd.read_excel(uploaded_file))
+    else:
+        df = preprocess_df(pd.read_csv(uploaded_file))
     st.markdown("### 🔍 Uploaded Data")
     st.dataframe(df)
+
 
 # Predeclare placeholders (above fold)
 progress_bar = st.empty()
@@ -34,11 +40,26 @@ status = st.empty()
 if df is not None:
     # --- Preference Input ---
     st.markdown("### 🎯 Ranking Preferences")
+
+    st.markdown("""
+    **How Ranking Works:**  
+    Each company is scored based on how well it matches your preferences and company attributes:
+    
+    - **Small company size** (fewer than 100 employees): +1 point  
+    - **Matching target region** (if selected): +1 point  
+    - **Funding stage is Seed or Series A**: +1 point  
+    - **Matching major segment** (if selected): +1 point  
+    
+    The final score ranges from **0 to 4**, and companies are ranked from highest to lowest score.
+    """)
+
     region_options = ["No preference"] + sorted(df["Region"].dropna().unique())
     segment_options = ["No preference"] + sorted(df["Major Segment"].dropna().unique())
 
     selected_region = st.selectbox("Target Region", options=region_options)
     selected_segment = st.selectbox("Target Major Segment", options=segment_options)
+
+    st.caption("Tip: For best results, run this in **batches of 50 companies or fewer**. Scraping thousands at once may trigger delays or bot protections.")
 
     if st.button("🌐 Fill in Website + Region & Score Companies"):
         progress_bar = st.progress(0)
@@ -141,6 +162,10 @@ if augmented_df is not None:
     with st.container():
         # Show which companies were augmented
         st.markdown("### 🛠️ Updated Companies & Fields")
+        st.caption(
+            "This table shows companies whose **website** or **region** fields were updated via web scraping. "
+            "Use it to double-check for any inaccurate or unexpected data changes before exporting."
+        )
         augmented_only = []
         for i, row in augmented_df.iterrows():
             orig_row = df.iloc[i]
