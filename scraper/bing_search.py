@@ -1,6 +1,7 @@
 import re
 import time
 import requests
+from requests.exceptions import SSLError
 from urllib.parse import urlparse, urlunparse
 from bs4 import BeautifulSoup
 
@@ -198,14 +199,34 @@ def get_root_homepage(url: str) -> str:
     return urlunparse((p.scheme, p.netloc, "", "", "", ""))
 
 
-def verify_website_fast(url: str, company_name: str) -> bool:
+def verify_website_fast(url: str, company_name: str, tried_www: bool = False) -> bool:
+    """
+    Returns True if the page at `url` looks like it belongs to `company_name`
+    (by finding one of the extracted tokens in its HTML), False otherwise.
+    On SSL errors it will retry once with 'www.' prefixed to the host.
+    """
     try:
         print(f"  🔍 verify_website_fast: GET {url}")
+        # leave verify=True so we catch real cert errors
         r = session.get(url, timeout=5)
         r.raise_for_status()
         content = r.text.lower()
+
+    except SSLError as e:
+        # retry once with www.<host>
+        if not tried_www:
+            parsed = urlparse(url)
+            host = parsed.netloc
+            alt_host = "www." + host
+            alt_url = urlunparse(parsed._replace(netloc=alt_host))
+            print(f"    ❌ SSL error; retrying with {alt_url}")
+            return verify_website_fast(alt_url, company_name, tried_www=True)
+        print(f"    ❌ SSL error even after www retry: {e}")
+        return False
+
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
+            # your existing Playwright fallback
             print("    🚫 403 detected; using Playwright…")
             from playwright.sync_api import sync_playwright
             with sync_playwright() as p:
@@ -219,10 +240,12 @@ def verify_website_fast(url: str, company_name: str) -> bool:
         else:
             print(f"    ❌ verify error: {e}")
             return False
+
     except Exception as e:
         print(f"    ❌ verify error: {e}")
         return False
 
+    # now look for any token in the page text
     for tok in extract_simple_tokens(company_name):
         if tok in content:
             print(f"    ✅ verify: token '{tok}' found")
