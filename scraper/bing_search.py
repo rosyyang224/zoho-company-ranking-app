@@ -143,7 +143,8 @@ def extract_and_score_links(soup: BeautifulSoup, company_name: str):
 
         href    = a["href"]
         title   = a.get_text(strip=True)
-        snippet = (block.select_one(".b_caption p") or "").get_text(strip=True)
+        p_tag = block.select_one(".b_caption p")
+        snippet = p_tag.get_text(strip=True) if p_tag else ""
 
         if any(domain in href.lower() for domain in SKIP_DOMAINS):
             continue
