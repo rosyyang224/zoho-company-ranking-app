@@ -45,7 +45,9 @@ if df is not None:
         status = st.empty()
 
         # --- Augmentation ---
-        def _process_row(row):
+        error_log = []
+
+        def _process_row(row, idx):
             company = row["Account Name"]
             orig_url = row.get("Website") or None
             orig_region = row.get("Region") or None
@@ -65,20 +67,26 @@ if df is not None:
                     "Region": info.get("region") or orig_region,
                 }
             except Exception as e:
+                error_log.append({
+                    "Index": idx,
+                    "Company": company,
+                    "Error": str(e)
+                })
                 return {
                     **row,
                     "Website": orig_url,
-                    "Region": orig_region,
-                    "Error": str(e)
+                    "Region": orig_region
                 }
+
 
         results = [None] * len(df)
         future_to_index = {}
         status.text("Taking a few minutes to fill in websites and regions...")
         with ThreadPoolExecutor(max_workers=5) as executor:
             for idx, (_, row) in enumerate(df.iterrows()):
-                future = executor.submit(_process_row, row)
+                future = executor.submit(_process_row, row, idx)
                 future_to_index[future] = idx
+
 
         completed = 0
         for future in as_completed(future_to_index):
@@ -96,11 +104,17 @@ if df is not None:
         augmented_df = pd.DataFrame(results)
         status.success("✅ Augmentation complete.")
 
+        if error_log:
+            st.warning(f"{len(error_log)} companies encountered errors during scraping.")
+            with st.expander("See error log"):
+                st.dataframe(pd.DataFrame(error_log))
+
+
         # --- Scoring ---
         def score_row(row):
             score = 0
             try:
-                if int(row.get("# Employees", 0)) < 100:
+                if int(row.get("Employees", 0)) < 100:
                     score += 1
             except:
                 pass
