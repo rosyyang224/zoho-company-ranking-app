@@ -7,7 +7,13 @@ from scraper.company_processor import process_company
 from utils.scoring import score_row
 
 def run_scrape_and_rank_tab():
-    uploaded_file = st.file_uploader("Upload Zoho CSV or Excel", type=["csv", "xlsx"], help="At minimum include 'Account Name'.", key="scrape_upload")
+    st.markdown("### Upload Zoho Accounts Data")
+    uploaded_file = st.file_uploader(
+        label="To export: Zoho > Accounts > Actions > Export Accounts. It should be in CSV format, as it is upon Zoho export, but also accepts Excel files.",
+        type=["csv", "xlsx"],
+        help="To export: Zoho > Accounts > Actions > Export Accounts. You only need to include 'Account Name'; other fields like 'Website', 'Region', 'Funding Stage', 'Employees', and 'Major Segment' are optional."
+    )
+    st.caption("💡 Tip: This mode is slower. Keep batches in <30 companies to avoid bot detection and delays.")
     if uploaded_file:
         st.session_state.uploaded_file = uploaded_file
         st.session_state.df = preprocess_df(uploaded_file)
@@ -15,6 +21,20 @@ def run_scrape_and_rank_tab():
     if st.session_state.df is not None:
         df = st.session_state.df
         st.dataframe(df)
+
+        st.markdown("### 🎯 Ranking Preferences")
+
+        st.markdown("""
+        **How Ranking Works:**  
+        Each company is scored based on how well it matches your preferences and company attributes:
+        
+        - **Small company size** (fewer than 100 employees): +1 point  
+        - **Matching target region** (if selected): +1 point  
+        - **Funding stage is Seed or Series A**: +1 point  
+        - **Matching major segment** (if selected): +1 point  
+
+        The final score ranges from **0 to 4**, and companies are ranked from highest to lowest score.
+        """)
 
         region_options = ["No preference"] + sorted(df["Region"].dropna().unique())
         segment_options = ["No preference"] + sorted(df["Major Segment"].dropna().unique())
@@ -62,6 +82,7 @@ def run_scrape_and_rank_tab():
 
             st.markdown("### 💾 Export")
             buffer = io.BytesIO()
+            export_df = ranked.drop(columns=[c for c in ["Rank", "Error"] if c in ranked.columns])
             with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
-                ranked.to_excel(writer, index=False)
+                export_df.to_excel(writer, index=False)
             st.download_button("⬇️ Download", buffer.getvalue(), "ranked_companies.xlsx")

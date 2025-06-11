@@ -10,6 +10,12 @@ initialize_session_state()
 st.title("📊 Company Ranking Dashboard")
 st.write(f"🔍 Memory usage: {psutil.Process().memory_info().rss / 1024 ** 2:.2f} MB")
 
+st.markdown("""
+Run the 'Scrape & Rank' tab if you're looking to fill in data AND rank companies. Limit input to <30 companies at a time.  
+Run the 'Rank Only' tab if you're looking to rerank all companies based on new criteria. No limit on input file size.
+""")
+
+
 tab1, tab2 = st.tabs(["🔎 Scrape & Rank", "📁 Rank Only"])
 
 with tab1:
