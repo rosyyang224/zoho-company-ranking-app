@@ -42,6 +42,9 @@ def run_scrape_and_rank_tab():
         selected_region = st.selectbox("Target Region", region_options)
         selected_segment = st.selectbox("Target Major Segment", segment_options)
 
+        if "show_results" not in st.session_state:
+            st.session_state.show_results = False
+
         if st.button("🌐 Fill in Website + Region & Score Companies"):
             start = time.time()
             status = st.empty()
@@ -77,12 +80,15 @@ def run_scrape_and_rank_tab():
             ranked["Rank"] = ranked.apply(lambda r: score_row(r, selected_region, selected_segment), axis=1)
             ranked = ranked.sort_values("Rank", ascending=False)
             st.session_state.ranked_df = ranked
+            st.session_state.show_results = True
 
-            st.dataframe(ranked)
+        if st.session_state.show_results and st.session_state.get("ranked_df") is not None:
+            st.markdown("### 🏆 Ranked Companies")
+            st.dataframe(st.session_state.ranked_df)
 
             st.markdown("### 💾 Export")
+            export_df = st.session_state.ranked_df.drop(columns=[c for c in ["Rank", "Error"] if c in st.session_state.ranked_df.columns])
             buffer = io.BytesIO()
-            export_df = ranked.drop(columns=[c for c in ["Rank", "Error"] if c in ranked.columns])
             with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
                 export_df.to_excel(writer, index=False)
             st.download_button("⬇️ Download", buffer.getvalue(), "ranked_companies.xlsx")
