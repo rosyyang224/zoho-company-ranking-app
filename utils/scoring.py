@@ -62,14 +62,22 @@ def show_ranking_config(df, key_prefix="rank"):
     funding_options = ["No preference"] + sorted(df.get("Funding Stage", pd.Series()).dropna().unique())
 
     if mode == "Point-Based":
-        employee_threshold = st.number_input(
-            "Employee count threshold",
-            min_value=1,
-            max_value=1000,
-            value=100,
-            step=10,
-            key=f"{key_prefix}_emp_thresh"
+        employee_pref = st.selectbox(
+            "Employee threshold",
+            options=["No preference", "Custom threshold..."],
+            key="emp_pref_choice"
         )
+
+        employee_threshold = None
+        if employee_pref == "Custom threshold...":
+            employee_threshold = st.number_input(
+                "Specify threshold (e.g. < 100)",
+                min_value=1,
+                max_value=10000,
+                value=100,
+                step=10,
+                key="emp_threshold_input"
+            )
 
         selected_region = st.selectbox(
             "Preferred Region", options=region_options, key=f"{key_prefix}_point_region_select")
@@ -80,7 +88,6 @@ def show_ranking_config(df, key_prefix="rank"):
 
         return {
             "mode": "point",
-            "employee": st.checkbox("Add point if employees < threshold", value=True, key=f"{key_prefix}_point_emp"),
             "region": selected_region != "No preference",
             "funding": selected_funding != "No preference",
             "segment": selected_segment != "No preference",

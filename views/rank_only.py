@@ -57,7 +57,7 @@ def run_rank_only_tab():
         st.dataframe(df)
 
         st.markdown("### 💾 Export Results")
-        st.markdown("The exported file does not include the 'Ranking' column so that you can easily re-import back to Zoho, since Zoho fields currently lack a ranking column")
+        st.caption("The exported file does not include the 'Ranking' column so that you can easily re-import back to Zoho, since Zoho fields don't have a 'Ranking' column")
         export_df = df.drop(columns=[c for c in ["Rank", "Error"] if c in df.columns])
         buffer = io.BytesIO()
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
