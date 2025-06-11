@@ -9,7 +9,6 @@ def normalize_missing(val):
 
 def preprocess_df(path):
     df = pd.read_csv(path, encoding="ISO-8859-1")
-    df.dropna(axis=1, how="all", inplace=True)
     df.columns = df.columns.str.strip()
     df.drop_duplicates(inplace=True)
     for col in df.select_dtypes(include=['object']):
