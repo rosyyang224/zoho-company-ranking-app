@@ -1,7 +1,7 @@
 import io
 import pandas as pd
 import streamlit as st
-from utils.scoring import score_row
+from utils.scoring import score_row, compute_score, show_ranking_config
 
 def run_rank_only_tab():
     st.markdown("### Upload Pre-Filled Zoho Accounts Data")
@@ -18,34 +18,48 @@ def run_rank_only_tab():
         st.dataframe(df)
 
         st.markdown("### 🎯 Ranking Preferences")
+        st.markdown("By default, companies are ranked using a **Point-Based System** with only employees < 100 having points.")
 
-        st.markdown("""
-        **How Ranking Works:**  
-        Each company is scored based on how well it matches your preferences and company attributes:
-        
-        - **Small company size** (fewer than 100 employees): +1 point  
-        - **Matching target region** (if selected): +1 point  
-        - **Funding stage is Seed or Series A**: +1 point  
-        - **Matching major segment** (if selected): +1 point  
+        col1, col2 = st.columns(2)
 
-        The final score ranges from **0 to 4**, and companies are ranked from highest to lowest score.
-        """)
+        with col1:
+            st.markdown("""
+            #### Point-Based Scoring (Default)
+            Each selected preference adds **+1 point** to a company’s score:
+            - Employees fewer than threshold (default: 100)  
+            - Region matches your selection (optional)  
+            - Major segment matches your selection (optional)  
+            - Funding stage matches your selection (optional)  
 
-        region_options = ["No preference"] + sorted(df["Region"].dropna().unique())
-        segment_options = ["No preference"] + sorted(df["Major Segment"].dropna().unique())
+            Companies with more matches score higher and are ranked at the top.
+            """)
 
-        selected_region = st.selectbox("Target Region", region_options, key="rank_only_region")
-        selected_segment = st.selectbox("Target Major Segment", segment_options, key="rank_only_segment")
+        with col2:
+            st.markdown("""
+            #### Weighted Scoring (Optional)
+            Switch to **Weighted Mode** to assign custom importance to each criterion.
+            - For example: Region weight = 2.0, Funding stage = 0.5  
+            - Companies are scored based on how well they match, *scaled* by your weights  
 
-        df["Rank"] = df.apply(lambda r: score_row(r, selected_region, selected_segment), axis=1)
+            This is helpful if some factors matter more than others in your decision-making.
+            """)
+
+        st.markdown("> 📝 Tip: Leaving a field as **'No preference'** means it won’t affect the ranking.")
+
+
+        with st.expander("⚙️ Customize Ranking System"):
+            ranking_config = show_ranking_config(df, key_prefix="rank")
+
+        df["Rank"] = df.apply(lambda r: compute_score(r, ranking_config), axis=1)
         df = df.sort_values("Rank", ascending=False)
 
         st.markdown("### 🏆 Ranked Companies")
         st.dataframe(df)
 
         st.markdown("### 💾 Export Results")
+        st.markdown("The exported file does not include the 'Ranking' column so that you can easily re-import back to Zoho, since Zoho fields currently lack a ranking column")
+        export_df = df.drop(columns=[c for c in ["Rank", "Error"] if c in df.columns])
         buffer = io.BytesIO()
-        export_df = df.drop(columns=["Rank"])
         with pd.ExcelWriter(buffer, engine="openpyxl") as writer:
             export_df.to_excel(writer, index=False)
         st.download_button("⬇️ Download", buffer.getvalue(), "ranked_only_companies.xlsx")
