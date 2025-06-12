@@ -65,7 +65,7 @@ def show_ranking_config(df, key_prefix="rank"):
         employee_pref = st.selectbox(
             "Employee threshold",
             options=["No preference", "Custom threshold..."],
-            key="emp_pref_choice"
+            key=f"{key_prefix}emp_pref_choice"
         )
 
         employee_threshold = None
@@ -76,7 +76,7 @@ def show_ranking_config(df, key_prefix="rank"):
                 max_value=10000,
                 value=100,
                 step=10,
-                key="emp_threshold_input"
+                key=f"{key_prefix}emp_threshold_input"
             )
 
         selected_region = st.selectbox(
