@@ -143,7 +143,7 @@ def test_location(csv_path="top_cgt_companies.csv", max_workers=5):
             res = future.result()
             results.append(res)
 
-    pd.DataFrame(results).to_csv("cgt_location_scraping_results.csv", index=False)
+    pd.DataFrame(results).to_csv("output/cgt_location_scraping_results.csv", index=False)
     print("\n✅ Location-only test complete. Results saved to cgt_location_scraping_results.csv")
 
 if __name__ == "__main__":

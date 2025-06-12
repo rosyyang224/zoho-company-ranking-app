@@ -132,24 +132,32 @@ def score_location(line: str) -> int:
         score += 25
     if re.search(r"[A-Z]\d[A-Z] ?\d[A-Z]\d", line, re.IGNORECASE):  # Canadian postal code
         score += 25
-    if re.search(r"\d{1,4} .{2,30}(?:st|street|ave|avenue|road|rd|blvd|boulevard|lane|ln)\b", line_lower):
+    if re.search(r"\d{1,4} .{2,30}(?:st|street|ave|avenue|road|rd|blvd|boulevard|lane|ln)\\b", line_lower):
         score += 25  # street-like patterns
 
     # Compound matches (City + Province/State + ZIP/postal)
-    if re.search(r"\b[a-zA-Z]+,\s*[A-Z]{2,3}(?:\s+\d{5}|\s+[A-Z]\d[A-Z] ?\d[A-Z]\d)?", line):
+    if re.search(r"\\b[a-zA-Z]+,\\s*[A-Z]{2,3}(?:\\s+\\d{5}|\\s+[A-Z]\\d[A-Z] ?\\d[A-Z]\\d)?", line):
         score += 30
+    if re.search(r"[A-Za-z\\s]+,\\s?[A-Z]{2}\\s+\\S{3,}", line):
+        score += 25  # Canada-style city + province + postal
 
-    if re.search(r"[A-Za-z\s]+,\s?[A-Z]{2}\s+\S{3,}", line):
-        score += 25  # Strong boost for city + province + postal format (Canada)
-
-
-    # Contextual terms
+    # Contextual: US states
     if any(state.lower() in line_lower for state in US_STATES):
         score += 20
-    if any(country in line_lower for country in ['canada', 'united states', 'usa', 'germany', 'france', 'china']):
-        score += 20
 
-    # Reduce if only vague contact content
+    # ✅ Contextual: pycountry-backed match with filtering
+    if PYCOUNTRY_AVAILABLE:
+        tokens = re.findall(r"\\b[A-Z][a-z]+\\b", line)  # Capitalized words
+        for token in tokens:
+            try:
+                country = pycountry.countries.search_fuzzy(token)[0]
+                if country.name.lower() not in {'georgia', 'guinea'}:  # filter ambiguous
+                    score += 20
+                    break
+            except LookupError:
+                continue
+
+    # Reduce if only vague footer content
     if any(term in line_lower for term in ['copyright', 'terms of use', 'privacy policy']):
         score -= 30
     if re.match(r'^contact us$', line_lower.strip()):
